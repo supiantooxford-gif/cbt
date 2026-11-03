@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Logo aplikasi CBT (bawaan).
+  Dibuat ulang sebagai vektor mengikuti logo yang dikirim pemilik: ikon aplikasi biru bergradasi,
+  layar komputer berisi pilihan A–E dengan baris B tersorot, toga wisuda, lembar jawaban bercentang,
+  tulisan besar CBT bergaris emas, dan semboyan "Aplikasi Ujian/Asesmen Berbasis Komputer".
+
+  Logo ini adalah NILAI BAWAAN. Super Admin dapat menggantinya dengan berkas miliknya sendiri
+  melalui menu "Logo Aplikasi" (disimpan sebagai URL di app_pengaturan, kunci `app_logo`).
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512"
+     role="img" aria-label="Computer-Based Test (CBT)">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0.35" y2="1">
+      <stop offset="0" stop-color="#57C6FA"/>
+      <stop offset="0.5" stop-color="#2E9BEF"/>
+      <stop offset="1" stop-color="#1B6FD0"/>
+    </linearGradient>
+    <linearGradient id="navy" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1B3B6F"/>
+      <stop offset="1" stop-color="#0F2547"/>
+    </linearGradient>
+    <linearGradient id="kaca" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#E8F2FE"/>
+    </linearGradient>
+    <clipPath id="pangkas">
+      <rect x="24" y="24" width="464" height="464" rx="94"/>
+    </clipPath>
+  </defs>
+
+  <!-- Ikon aplikasi: bingkai biru muda + bidang bergradasi -->
+  <rect x="6" y="6" width="500" height="500" rx="112" fill="#63CBF9"/>
+  <g clip-path="url(#pangkas)">
+    <rect x="24" y="24" width="464" height="464" fill="url(#bg)"/>
+
+    <!-- Sapuan putih + busur emas di belakang perangkat -->
+    <path d="M18 452 C 6 286 108 108 336 62" stroke="#FFFFFF" stroke-width="34" fill="none"
+          stroke-linecap="round" opacity="0.95"/>
+    <path d="M6 470 C -8 300 96 128 300 74" stroke="#FFCE21" stroke-width="26" fill="none"
+          stroke-linecap="round"/>
+
+    <!-- Area bawah bergelombang (tempat tulisan CBT) -->
+    <path d="M24 300 C 132 258 306 288 488 252 L488 424 Q488 488 424 488 L88 488 Q24 488 24 424 Z"
+          fill="url(#navy)"/>
+
+    <!-- Toga wisuda -->
+    <g>
+      <path d="M392 52 L478 88 L392 124 L306 88 Z" fill="#132C55"/>
+      <path d="M352 112 q40 20 80 0 l0 20 q-40 20 -80 0 z" fill="#1C4176"/>
+      <path d="M470 92 C 480 122 480 146 472 166" stroke="#FFC400" stroke-width="6" fill="none"
+            stroke-linecap="round"/>
+      <circle cx="471" cy="176" r="11" fill="#FFC400"/>
+    </g>
+
+    <!-- Monitor dengan layar soal A-E -->
+    <g>
+      <rect x="126" y="112" width="244" height="162" rx="16" fill="#132C55"/>
+      <rect x="140" y="126" width="216" height="134" rx="8" fill="url(#kaca)"/>
+
+      <!-- baris A -->
+      <circle cx="168" cy="146" r="10" fill="#1B5FBF"/>
+      <text x="168" y="150.5" font-family="Inter, Arial, sans-serif" font-size="12.5" font-weight="700"
+            fill="#FFFFFF" text-anchor="middle">A</text>
+      <rect x="186" y="141" width="152" height="10" rx="5" fill="#C3D5EA"/>
+
+      <!-- baris B (tersorot hijau) -->
+      <rect x="152" y="156" width="198" height="20" rx="9" fill="#DCF5D2"/>
+      <circle cx="168" cy="166" r="10" fill="#22A24A"/>
+      <text x="168" y="170.5" font-family="Inter, Arial, sans-serif" font-size="12.5" font-weight="700"
+            fill="#FFFFFF" text-anchor="middle">B</text>
+      <rect x="186" y="161" width="152" height="10" rx="5" fill="#63C462"/>
+
+      <!-- baris C, D, E -->
+      <circle cx="168" cy="186" r="10" fill="#1B5FBF"/>
+      <text x="168" y="190.5" font-family="Inter, Arial, sans-serif" font-size="12.5" font-weight="700"
+            fill="#FFFFFF" text-anchor="middle">C</text>
+      <rect x="186" y="181" width="152" height="10" rx="5" fill="#C3D5EA"/>
+
+      <circle cx="168" cy="206" r="10" fill="#1B5FBF"/>
+      <text x="168" y="210.5" font-family="Inter, Arial, sans-serif" font-size="12.5" font-weight="700"
+            fill="#FFFFFF" text-anchor="middle">D</text>
+      <rect x="186" y="201" width="152" height="10" rx="5" fill="#C3D5EA"/>
+
+      <circle cx="168" cy="226" r="10" fill="#1B5FBF"/>
+      <text x="168" y="230.5" font-family="Inter, Arial, sans-serif" font-size="12.5" font-weight="700"
+            fill="#FFFFFF" text-anchor="middle">E</text>
+      <rect x="186" y="221" width="152" height="10" rx="5" fill="#C3D5EA"/>
+
+      <!-- penunjuk tetikus -->
+      <path d="M330 214 l0 44 l11 -11 l9 20 l10 -4.5 l-9 -20 l14 -1 z" fill="#0E1B33"/>
+    </g>
+
+    <!-- Dudukan monitor -->
+    <path d="M228 274 h44 l10 26 h-64 z" fill="#132C55"/>
+    <rect x="188" y="298" width="124" height="14" rx="7" fill="#0F2547"/>
+
+    <!-- Lembar jawaban bercentang -->
+    <g transform="rotate(-7 430 250)">
+      <rect x="378" y="176" width="112" height="152" rx="12" fill="#7FB8F0"/>
+      <rect x="366" y="168" width="112" height="152" rx="12" fill="#FFFFFF"/>
+      <g>
+        <rect x="380" y="186" width="24" height="24" rx="6" fill="#22A24A"/>
+        <path d="M386 198 l4 5 l8 -9" stroke="#FFFFFF" stroke-width="3" fill="none"
+              stroke-linecap="round" stroke-linejoin="round"/>
+        <rect x="412" y="193" width="52" height="9" rx="4.5" fill="#BFD3EA"/>
+
+        <rect x="380" y="220" width="24" height="24" rx="6" fill="#22A24A"/>
+        <path d="M386 232 l4 5 l8 -9" stroke="#FFFFFF" stroke-width="3" fill="none"
+              stroke-linecap="round" stroke-linejoin="round"/>
+        <rect x="412" y="227" width="52" height="9" rx="4.5" fill="#BFD3EA"/>
+
+        <rect x="380" y="254" width="24" height="24" rx="6" fill="#22A24A"/>
+        <path d="M386 266 l4 5 l8 -9" stroke="#FFFFFF" stroke-width="3" fill="none"
+              stroke-linecap="round" stroke-linejoin="round"/>
+        <rect x="412" y="261" width="52" height="9" rx="4.5" fill="#BFD3EA"/>
+
+        <rect x="380" y="288" width="24" height="24" rx="6" fill="#EDF4FE" stroke="#9CC2F0"
+              stroke-width="2.5"/>
+        <rect x="412" y="295" width="52" height="9" rx="4.5" fill="#BFD3EA"/>
+      </g>
+    </g>
+
+    <!-- Tulisan CBT + garis emas + semboyan -->
+    <text x="256" y="404" font-family="Inter, Arial, Helvetica, sans-serif" font-size="150"
+          font-weight="900" fill="#0C1C36" text-anchor="middle" opacity="0.35">CBT</text>
+    <text x="253" y="400" font-family="Inter, Arial, Helvetica, sans-serif" font-size="150"
+          font-weight="900" fill="#FFFFFF" text-anchor="middle" letter-spacing="2">CBT</text>
+    <rect x="104" y="416" width="304" height="11" rx="5.5" fill="#F5C518"/>
+    <text x="256" y="454" font-family="Inter, Arial, Helvetica, sans-serif" font-size="27"
+          font-weight="700" fill="#FFFFFF" text-anchor="middle">Aplikasi Ujian/Asesmen</text>
+    <text x="256" y="484" font-family="Inter, Arial, Helvetica, sans-serif" font-size="27"
+          font-weight="700" fill="#FFFFFF" text-anchor="middle">Berbasis Komputer</text>
+  </g>
+</svg>
