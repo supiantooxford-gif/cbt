@@ -111,6 +111,15 @@ $ins->execute([64, 'guru.nonaktif', $hash('SandiNonaktif4'), 'Guru Nonaktif', 'g
 // Akun kepala madrasah (role kepala) — BUKAN akun guru, tidak boleh dipakai untuk akun guru.
 $ins->execute([65, 'kepala.uji', $hash('SandiKepala55'), 'Kepala Uji CBT', 'kepala', null, 1, 1, $now]);
 // Guru 31 (sekolah lain) TIDAK punya akun e-GURU → akun CBT memakai sandi awal guru123.
+//
+// AKUN OPERATOR e-GURU (v1.20.0): nama, nama pengguna, dan kata sandi akun operator inilah yang
+// dipakai untuk akun Admin Operator CBT saat lembaga ditarik.
+//   • Lembaga 1 — nama pengguna SENGAJA MEMUAT SPASI ("Endang Dulahu"), meniru data e-GURU nyata,
+//     supaya terbukti spasi di tengah nama pengguna dipertahankan.
+//   • Lembaga 2 — nama pengguna biasa; dipakai uji pembuatan sekolah lewat formulir.
+//   • Lembaga 3 & 4 — TIDAK punya akun operator/kepala → formulir memakai cara lama (sandi acak).
+$ins->execute([66, 'Endang Dulahu', $hash('SandiOperator1'), 'Endang Dulahu, S.Pd', 'operator', null, 1, 1, $now]);
+$ins->execute([67, 'opmtss', $hash('SandiOperator2'), 'Operator MTsS Lain', 'operator', null, 1, 2, $now]);
 
 $pdo->exec("INSERT INTO siswa (id, nis, nisn, nama, jenis_kelamin, kelas_id, tanggal_lahir, nama_wali, telepon, alamat, aktif, dibuat, sekolah_id, status, tempat_lahir, nama_ayah, nama_ibu) VALUES
     (41, 'S-001', '00S-001', 'Rizki Pratama', 'L', 11, '2010-05-02', 'Wali Rizki', '081234567801', 'Dusun Gandaria', 1, '$now', 1, 'aktif', 'Limboto', 'Ayah Rizki', 'Ibu Rizki'),

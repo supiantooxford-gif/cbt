@@ -19,7 +19,7 @@ require_once __DIR__ . '/helpers.php';
 // sekolah (permintaan pemilik), jadi tidak ada lagi yang dimuat di sini.
 
 /** Naikkan angka ini setiap kali skema berubah agar migrasi ikut dijalankan. */
-const SCHEMA_VERSION = '7';
+const SCHEMA_VERSION = '8';
 
 /**
  * Penjaga "penanda skema bisa lebih baru daripada isi basis data".
@@ -35,7 +35,7 @@ const SCHEMA_TABEL_WAJIB = [
 const SCHEMA_KOLOM_WAJIB = [
     'sekolah' => ['jenjang', 'aktivasi', 'aktif_sampai', 'aktivasi_ke', 'logo', 'tahun_ajaran', 'semester', 'kkm',
         'eguru_id', 'eguru_tarik'],
-    'users'   => ['sekolah_id', 'role', 'guru_id', 'siswa_id', 'foto', 'aktif'],
+    'users'   => ['sekolah_id', 'role', 'guru_id', 'siswa_id', 'foto', 'aktif', 'sandi_eguru'],
     'guru'    => ['sekolah_id', 'aktif', 'nuptk', 'jabatan'],
     'siswa'   => ['sekolah_id', 'kelas_id', 'aktif', 'nama_ayah', 'nama_ibu', 'status', 'tanggal_status'],
     'mapel'   => ['kktp'],
@@ -231,7 +231,8 @@ CREATE TABLE IF NOT EXISTS users (
     foto TEXT,
     aktif INTEGER NOT NULL DEFAULT 1,
     dibuat TEXT,
-    masuk_terakhir TEXT
+    masuk_terakhir TEXT,
+    sandi_eguru TEXT
 )
 SQL);
 
@@ -481,6 +482,18 @@ function migrasi(PDO $pdo): void
     // tampil sebagai "Belum ditarik" — tidak ada nilai yang ditebak.
     db_add_column($pdo, 'sekolah', 'eguru_id', 'INTEGER');
     db_add_column($pdo, 'sekolah', 'eguru_tarik', 'TEXT');
+
+    // ---------------------------------------------------------------- v8: PENANDA SANDI e-GURU
+    // Permintaan pemilik (v1.20.0): *"pastikan data guru yang masuk ke CBT nama pengguna dan
+    // sandinya sama dengan akun mereka di e-Guru"*.
+    //
+    // `users.sandi_eguru` = hash kata sandi e-GURU yang TERAKHIR disalin ke akun ini. Selama
+    // `users.password` masih sama dengan nilai ini, sandinya belum pernah diganti di CBT sehingga
+    // penarikan ulang boleh menyamakannya lagi bila sandi e-GURU berubah (mis. operator e-GURU
+    // mereset sandi guru). Begitu sandinya diganti sendiri (menu Akun Saya) atau direset Admin CBT,
+    // hash-nya berbeda → sandi pilihan pengguna TIDAK PERNAH ditimpa. NULL/kosong = akun lama yang
+    // belum punya penanda (memakai aturan lama: hanya disamakan bila masih sandi awal guru123).
+    db_add_column($pdo, 'users', 'sandi_eguru', 'TEXT');
 }
 
 /**

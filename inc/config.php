@@ -14,7 +14,7 @@ declare(strict_types=1);
 // Nama aplikasi tampil di halaman masuk, sidebar, footer, dan judul halaman.
 define('APP_NAME', 'Computer-Based Test (CBT)');
 define('APP_SUB', 'Aplikasi Ujian/Asesmen Berbasis Komputer');
-define('APP_VERSION', '1.19.1');
+define('APP_VERSION', '1.20.0');
 define('APP_AUTHOR', 'Supianto');
 define('APP_AUTHOR_JABATAN', 'Kepala MA. Sirojuth Tholibiin Mootilango');
 

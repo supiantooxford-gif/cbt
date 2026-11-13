@@ -30,7 +30,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = teks($_POST['username'] ?? '', 60);
     $sandi = (string) ($_POST['password'] ?? '');
 
-    $u = one('SELECT * FROM users WHERE username = ?', [$username]);
+    // Akun guru & operator di CBT memakai NAMA PENGGUNA e-GURU apa adanya (bisa bertitik, berspasi,
+    // atau berhuruf besar). e-GURU mencocokkan nama pengguna TANPA membedakan huruf besar-kecil
+    // (`COLLATE NOCASE`), jadi di sini dicoba: persis dahulu, lalu tanpa beda huruf besar-kecil —
+    // supaya akun yang sama benar-benar bisa dipakai dengan cara yang sama seperti di e-GURU.
+    $u = one('SELECT * FROM users WHERE username = ?', [$username])
+        ?: one('SELECT * FROM users WHERE username = ? COLLATE NOCASE', [$username]);
     if (!$u || !password_verify($sandi, (string) $u['password'])) {
         $galat = 'Nama pengguna atau kata sandi salah.';
     } elseif ((int) $u['aktif'] !== 1) {

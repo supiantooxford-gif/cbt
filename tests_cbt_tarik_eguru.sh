@@ -294,6 +294,39 @@ cek "perubahan jabatan ikut diperbarui" "$(sql "SELECT jabatan FROM guru WHERE n
 cek "akun guru baru ikut dibuat" "$(sql "SELECT COUNT(*) FROM users u JOIN guru g ON g.id = u.guru_id WHERE g.nip = 'G-099'")" "1"
 cek "akun siswa baru ikut dibuat" "$(sql "SELECT COUNT(*) FROM users u JOIN siswa s ON s.id = u.siswa_id WHERE s.nis = '2401009'")" "1"
 
+echo "== 12b. Sandi e-GURU yang BERUBAH ikut disamakan (v1.20.0) =="
+# Permintaan pemilik: "pastikan data guru yang masuk ke CBT nama pengguna dan sandinya sama dengan
+# akun mereka di e-Guru". Kolom penanda `users.sandi_eguru` menyimpan hash e-GURU terakhir yang
+# disalin, sehingga sandi e-GURU yang berubah (mis. direset operator e-GURU) tetap tersusul —
+# KECUALI sandi yang sudah diganti sendiri oleh gurunya di CBT.
+hashDari(){ php -r 'echo password_hash($argv[1], PASSWORD_DEFAULT);' -- "$1"; }
+cek "prasyarat: sandi rina saat ini = sandi e-GURU" "$(sandiCocok rina.m SandiRina333)" "ya"
+cek "penanda sandi e-GURU tersimpan pada akun guru" \
+  "$(sql "SELECT CASE WHEN sandi_eguru = password THEN 'ikut' ELSE 'tidak' END FROM users WHERE username = 'rina.m'")" "ikut"
+isiE "UPDATE users SET password_hash = '$(hashDari SandiRinaBaru90)' WHERE username = 'rina.m'"
+cek "prasyarat: sandi e-GURU rina sudah berubah" \
+  "$(sandiCocok rina.m SandiRinaBaru90)" "tidak"
+T=$(csrf "$SP" tarik_eguru.php)
+curl -s -b "$SP" -c "$SP" -o /dev/null -d "csrf=$T" "$BASE/tarik_eguru.php"
+cek "sandi baru e-GURU ikut dipakai di CBT" "$(sandiCocok rina.m SandiRinaBaru90)" "ya"
+cek "sandi e-GURU yang lama sudah tidak berlaku" "$(sandiCocok rina.m SandiRina333)" "tidak"
+cek "penanda sandi e-GURU ikut diperbarui" \
+  "$(sql "SELECT CASE WHEN sandi_eguru = password THEN 'ikut' ELSE 'tidak' END FROM users WHERE username = 'rina.m'")" "ikut"
+
+# Guru MENGGANTI SENDIRI sandinya di CBT (lewat menu Akun Saya): sandi pilihannya tidak boleh
+# tertimpa walau sandi e-GURU berubah lagi.
+GR2=/tmp/cbt_tarik_rina.jar
+masuk "$GR2" rina.m SandiRinaBaru90
+T=$(csrf "$GR2" akun.php)
+curl -s -b "$GR2" -c "$GR2" -o /dev/null -d "csrf=$T" -d 'aksi=sandi' -d 'lama=SandiRinaBaru90' \
+  -d 'baru=SandiPilihanRina77' -d 'ulang=SandiPilihanRina77' "$BASE/akun.php"
+cek "guru mengganti sendiri sandinya di CBT" "$(sandiCocok rina.m SandiPilihanRina77)" "ya"
+isiE "UPDATE users SET password_hash = '$(hashDari SandiRinaEGuru99)' WHERE username = 'rina.m'"
+T=$(csrf "$SP" tarik_eguru.php)
+curl -s -b "$SP" -c "$SP" -o /dev/null -d "csrf=$T" "$BASE/tarik_eguru.php"
+cek "sandi pilihan guru TIDAK ditimpa walau e-GURU berubah" "$(sandiCocok rina.m SandiPilihanRina77)" "ya"
+cek "sandi e-GURU yang baru tidak berlaku di CBT" "$(sandiCocok rina.m SandiRinaEGuru99)" "tidak"
+
 echo "== 13. Penarikan pada sekolah tanpa pasangan tidak mengubah apa pun =="
 GURU_SEK2_AWAL=$(sql "SELECT COUNT(*) FROM guru WHERE sekolah_id = $SID2")
 SISWA_SEK2_AWAL=$(sql "SELECT COUNT(*) FROM siswa WHERE sekolah_id = $SID2")
@@ -356,6 +389,16 @@ cari "$teslo" 'name="eguru_cari"' "medan pencarian nama lembaga ada"
 tidakk "$teslo" 'vibecoder-media-token' "token media tidak bocor"
 HASILCARI=$(curl -s -b "$SP" -c "$SP" "$BASE/sekolah.php?eguru_cari=tak-terpakai")
 cari "$HASILCARI" 'MTsS Lain Yang Tak Terpakai' "pencarian sebagian nama menemukan lembaga"
+# v1.20.0 (permintaan pemilik): "nama operator yang ada di akun e-Guru, begitu juga dengan nama
+# pengguna dan passwordnya diambil dari data akun operator e-Guru".
+cari "$HASILCARI" 'value="Operator MTsS Lain"' "nama admin diambil dari akun OPERATOR e-GURU"
+cari "$HASILCARI" 'value="opmtss" autocomplete="off"' "nama pengguna dari akun operator e-GURU terisi"
+cari "$(printf '%s' "$HASILCARI" | tr '\n' ' ')" \
+  'name="username" value="opmtss" autocomplete="off" *readonly' \
+  "nama pengguna e-GURU tidak diubah di formulir (readonly)"
+cari "$HASILCARI" 'id="sandiIkutEguru"' "kata sandi mengikuti akun e-GURU (tidak perlu diisi)"
+cari "$HASILCARI" 'Mengikuti kata sandi akun e-GURU' "keterangan kata sandi mengikuti e-GURU tampil"
+tidakk "$HASILCARI" 'name="password"' "formulir TIDAK meminta kata sandi baru bila akun e-GURU ada"
 cari "$HASILCARI" 'Belum ada' "lembaga yang belum ada di CBT ditandai"
 cari "$HASILCARI" 'Tarik &amp; Buat Sekolah' "formulir penarikan langsung disiapkan (hasil tunggal)"
 cari "$HASILCARI" 'form-grid' "formulir penarikan memakai tata letak formulir"
@@ -367,15 +410,30 @@ cari "$HASILBANYAK" 'lembaga ditemukan' "pencarian dengan beberapa hasil melapor
 cari "$HASILBANYAK" 'Sudah ada di CBT' "lembaga yang sudah ada di CBT ditandai"
 cari "$HASILBANYAK" 'tarik_eguru.php?sekolah=' "lembaga yang sudah ada diarahkan ke menu Tarik Data"
 
+echo "== 17b. Akun pengelola e-GURU: sumber nama/nama pengguna/kata sandi (v1.20.0) =="
+# `eguru_akun_pengelola()` memilih akun OPERATOR lebih dahulu, lalu akun kepala, dan null bila
+# keduanya tidak ada. Nama pengguna e-GURU dipakai APA ADANYA — termasuk spasi di tengahnya.
+CEK_OP=$(CBT_DB_FILE="$DB" EGURU_DB_FILE="$EGDB" php -d extension=pdo -d extension=pdo_sqlite -r '
+require "'"$DIR"'/inc/init.php"; require "'"$DIR"'/inc/eguru.php";
+$o = eguru_akun_pengelola(1); $k = eguru_akun_pengelola(2);
+echo ($o["peran"] ?? "-") . "|" . ($o["username"] ?? "-") . "|" . ($o["nama"] ?? "-") . "|";
+echo password_verify("SandiOperator1", (string) ($o["hash"] ?? "")) ? "sandi-ok" : "sandi-salah";
+echo "|" . ($k["username"] ?? "-") . "|";
+echo username_unik_apa_adanya("Endang Dulahu") . "|";
+echo eguru_akun_pengelola(4) === null ? "tanpa-akun" : "ada-akun";' 2>&1)
+cek "akun operator e-GURU: peran, nama, sandi (hash cocok), spasi dipertahankan, cadangan" \
+  "$CEK_OP" "operator|Endang Dulahu|Endang Dulahu, S.Pd|sandi-ok|opmtss|Endang Dulahu|tanpa-akun"
+
 echo "== 18. Membuat sekolah dengan menarik lembaga e-GURU =="
 cek "POST tanpa CSRF ditolak (419)" \
   "$(curl -s -b "$SP" -o /dev/null -w '%{http_code}' -d 'aksi=tarik_lembaga' -d 'eguru_id=2' "$BASE/sekolah.php")" "419"
 cek "sekolah belum ada sebelum ditarik" "$(sql "SELECT COUNT(*) FROM sekolah WHERE nama = 'MTsS Lain Yang Tak Terpakai'")" "0"
 T=$(csrf "$SP" akun.php)
+# v1.20.0: nama, nama pengguna, dan kata sandi akun Admin Operator TIDAK dikirim dari formulir —
+# ketiganya diambil aplikasi dari AKUN OPERATOR e-GURU lembaga itu.
 cek "POST tarik lembaga (302)" "$(curl -s -b "$SP" -c "$SP" -o /dev/null -w '%{http_code}' \
   -d "csrf=$T" -d 'aksi=tarik_lembaga' -d 'eguru_id=2' -d 'jenjang=SMP/MTs' -d 'tahun_ajaran=2026/2027' \
-  -d 'semester=Ganjil' -d 'nama_admin=Kepala Uji Tarik' -d 'username=mtss_uji' -d 'password=rahasia123' \
-  -d 'sekalian=1' "$BASE/sekolah.php")" "302"
+  -d 'semester=Ganjil' -d 'sekalian=1' "$BASE/sekolah.php")" "302"
 SIDBARU=$(sql "SELECT id FROM sekolah WHERE nama = 'MTsS Lain Yang Tak Terpakai'")
 cek "sekolah baru dibuat" "$([ -n "$SIDBARU" ] && [ "$SIDBARU" -gt 0 ] && echo ada)" "ada"
 cek "jenjang tersimpan" "$(sql "SELECT jenjang FROM sekolah WHERE id = $SIDBARU")" "SMP/MTs"
@@ -405,16 +463,27 @@ GUNAME=$(sql "SELECT u.username FROM users u JOIN guru g ON g.id = u.guru_id WHE
 cek "guru tanpa akun e-GURU tetap dibuatkan akun ($GUNAME)" "$([ -n "$GUNAME" ] && echo ada)" "ada"
 cek "guru tanpa akun e-GURU memakai sandi awal guru123" "$(sandiCocok "$GUNAME" guru123)" "ya"
 
-echo "== 19. Akun Admin Operator sekolah baru =="
+echo "== 19. Akun Admin Operator sekolah baru = AKUN OPERATOR e-GURU (v1.20.0) =="
 cek "akun operator dibuat" "$(sql "SELECT COUNT(*) FROM users WHERE sekolah_id = $SIDBARU AND role = 'operator'")" "1"
-cek "nama admin dari formulir" "$(sql "SELECT nama FROM users WHERE sekolah_id = $SIDBARU AND role = 'operator'")" "Kepala Uji Tarik"
-cek "nama pengguna dari formulir" "$(sql "SELECT username FROM users WHERE sekolah_id = $SIDBARU AND role = 'operator'")" "mtssuji"
-cek "kata sandi formulir berlaku" "$(sandiCocok mtssuji rahasia123)" "ya"
-masuk "$OP2" mtssuji rahasia123
+cek "nama operator dari akun operator e-GURU" \
+  "$(sql "SELECT nama FROM users WHERE sekolah_id = $SIDBARU AND role = 'operator'")" "Operator MTsS Lain"
+cek "nama pengguna dari akun operator e-GURU" \
+  "$(sql "SELECT username FROM users WHERE sekolah_id = $SIDBARU AND role = 'operator'")" "opmtss"
+cek "kata sandi = kata sandi akun operator e-GURU" "$(sandiCocok opmtss SandiOperator2)" "ya"
+cek "kata sandi e-GURU benar-benar dipakai (bukan sandi acak)" \
+  "$(sql "SELECT CASE WHEN sandi_eguru IS NOT NULL AND sandi_eguru = password THEN 'ikut' ELSE 'tidak' END FROM users WHERE username = 'opmtss'")" "ikut"
+cek "nama operator e-GURU tidak tertukar dengan akun guru/kepala" \
+  "$(sql "SELECT COUNT(*) FROM users WHERE username IN ('kepala.uji','ahmad') AND sekolah_id = $SIDBARU")" "0"
+masuk "$OP2" opmtss SandiOperator2
 cek "operator baru dapat masuk (halaman 200, bukan dialihkan ke login)" \
   "$(curl -s -b "$OP2" -c "$OP2" -o /dev/null -w '%{http_code}' "$BASE/index.php")" "200"
 cek "operator baru melihat nama sekolahnya" \
   "$(curl -s -b "$OP2" -c "$OP2" "$BASE/index.php" | grep -c 'MTsS Lain Yang Tak Terpakai')" "1"
+# e-GURU mencocokkan nama pengguna tanpa beda huruf besar-kecil; CBT harus sama ramahnya.
+OP2B=/tmp/cbt_tarik_op2b.jar
+masuk "$OP2B" OPMTSS SandiOperator2
+cek "nama pengguna e-GURU bisa dipakai walau beda huruf besar-kecil (seperti e-GURU)" \
+  "$(curl -s -b "$OP2B" -c "$OP2B" -o /dev/null -w '%{http_code}' "$BASE/index.php")" "200"
 
 echo "== 20. Sekolah hasil tarikan muncul di daftar & menu tarik data =="
 DAFTARLAGI=$(curl -s -b "$SP" -c "$SP" "$BASE/sekolah.php")
@@ -461,6 +530,9 @@ cari "$FORM2" 'value="Kepala Formulir Uji"' "nama admin disarankan dari kepala s
 cari "$FORM2" 'value="SMA/MA/SMK" selected' "jenjang diperkirakan dari kelas e-GURU (X)"
 cari "$FORM2" 'value="2026/2027"' "tahun ajaran e-GURU disarankan"
 cari "$FORM2" 'name="sekalian" value="1" checked' "centang 'sekalian tarik' aktif secara bawaan"
+# Lembaga tanpa akun operator/kepala di e-GURU tetap memakai cara lama (sandi acak + keterangan).
+cari "$FORM2" 'belum punya akun operator/kepala di e-GURU' \
+  "lembaga tanpa akun e-GURU diberi keterangan kata sandi dibuat baru"
 CEK_JJ=$(CBT_DB_FILE="$DB" EGURU_DB_FILE="$EGDB" php -d extension=pdo -d extension=pdo_sqlite -r '
 require "'"$DIR"'/inc/init.php"; require "'"$DIR"'/inc/eguru.php";
 echo eguru_jenjang_tebak(1) . "|" . eguru_jenjang_tebak(2) . "|" . eguru_jenjang_tebak(3) . "|";

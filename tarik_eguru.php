@@ -269,8 +269,10 @@ endif;
         <br><b><?= (int) $hasil['akun_guru_tanpa_eguru'] ?> guru belum punya akun di e-GURU</b> —
         akunnya dibuat dengan sandi awal <b>guru123</b>.
       <?php endif; ?>
-      <br>Sandi yang sudah diganti sendiri oleh guru pada menu <b>Akun Saya</b> di CBT
-      <b>tidak ditimpa</b> saat menarik data ulang.
+      <br>Selama sandinya belum diganti, sandi guru di CBT <b>terus mengikuti e-GURU</b> — termasuk
+      bila sandi e-GURU-nya kemudian diubah (mis. direset operator e-GURU), sandinya ikut diperbarui
+      saat data ditarik ulang. Sandi yang sudah diganti sendiri oleh guru pada menu <b>Akun Saya</b>
+      di CBT <b>tidak ditimpa</b>.
     </div>
     <p class="mut">Menarik data ulang aman: data yang sudah ada <b>diperbarui</b>, bukan diduplikasi.</p>
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
@@ -295,6 +297,8 @@ endif;
         <li><b>Akun guru memakai akun e-GURU</b>: nama pengguna dan kata sandi guru sama dengan
           yang dipakai di e-GURU, jadi guru tidak perlu akun baru. Bila e-GURU belum punya akun
           untuk guru itu, akun dibuat dengan kata sandi awal <b>guru123</b>.</li>
+        <li>Sandi guru di CBT terus mengikuti e-GURU selama belum diganti pemiliknya — termasuk bila
+          sandi e-GURU-nya diubah kemudian, tarik ulang akan menyamakannya lagi.</li>
         <li>Kata sandi yang sudah diganti sendiri oleh guru pada menu <b>Akun Saya</b> di CBT
           <b>tidak ditimpa</b> saat menarik data ulang.</li>
         <li>Akun siswa memakai kata sandi awal <b>siswa123</b>.</li>

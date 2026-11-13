@@ -2299,16 +2299,22 @@ function username_unik(string $dasar, int $kecualiUserId = 0): string
 /**
  * Nama pengguna UNIK dengan tulisan DIPERTAHANKAN APA ADANYA.
  *
- * Dipakai saat menarik akun dari e-GURU: nama pengguna e-GURU (mis. `rina.m`, `ahmad.fauzi`)
- * harus tetap sama di CBT. `username_unik()` sengaja membersihkan tanda baca sehingga tidak
- * bisa dipakai untuk keperluan ini. Bila namanya sudah dipakai akun lain, ditambah angka
- * (`rina.m2`, `rina.m3`, …) dan hal itu dilaporkan pemanggil.
+ * Dipakai saat menarik akun dari e-GURU: nama pengguna e-GURU (mis. `rina.m`, `ahmad.fauzi`,
+ * `Endang Dulahu`) harus tetap sama di CBT. `username_unik()` sengaja membersihkan tanda baca
+ * sehingga tidak bisa dipakai untuk keperluan ini.
+ *
+ * ⚠️ SPASI DI TENGAH nama pengguna DIPERTAHANKAN (v1.20.0). Sebagian akun OPERATOR di e-GURU
+ * memang memakai spasi ("Endang Dulahu") — dulu spasi dibuang sehingga nama pengguna di CBT
+ * menjadi "EndangDulahu" dan pemiliknya tidak bisa masuk memakai nama pengguna hafalannya.
+ * Hanya spasi berlebih (awal/akhir/spasi ganda) dan karakter kendali yang dirapikan.
+ *
+ * Bila namanya sudah dipakai akun lain, ditambah angka (`rina.m2`, `rina.m3`, …) dan hal itu
+ * dilaporkan pemanggil.
  */
 function username_unik_apa_adanya(string $dasar, int $kecualiUserId = 0): string
 {
-    $dasar = trim($dasar);
-    $dasar = preg_replace('/\s+/', '', $dasar) ?? $dasar;
-    $dasar = preg_replace('/[^A-Za-z0-9._@-]+/', '', $dasar) ?? $dasar;
+    $dasar = trim(preg_replace('/[\x00-\x1F\x7F]+/', '', $dasar) ?? $dasar);
+    $dasar = preg_replace('/ {2,}/', ' ', $dasar) ?? $dasar;
     if ($dasar === '') {
         $dasar = 'pengguna';
     }

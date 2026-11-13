@@ -12,7 +12,9 @@
  *      v1.14.0): akun memakai **nama pengguna DAN kata sandi e-GURU yang sama** — hash sandi
  *      e-GURU disalin apa adanya, sehingga guru masuk ke CBT dengan akun e-GURU-nya. Setelah itu
  *      guru tetap bebas mengganti sendiri kata sandinya pada menu "Akun Saya" di CBT
- *      (penarikan ULANG tidak menimpa sandi yang sudah diganti — lihat `eguru_akun_guru_sinkron`);
+ *      (penarikan ULANG tidak menimpa sandi yang sudah diganti — lihat `eguru_akun_guru_sinkron`;
+ *      v1.20.0: selama sandinya belum diganti, penarikan ulang tetap mengikuti e-GURU walau sandi
+ *      e-GURU-nya berubah, lewat kolom penanda `users.sandi_eguru`);
  *      siswa tetap memakai kata sandi awal siswa123;
  *   3. yang ditarik: Kelas & Mata Pelajaran + Data Guru + Data Siswa sekaligus.
  *
@@ -127,9 +129,15 @@ function eguru_akun_guru(int $eguruGuruId): ?array
  *  • AKUN BARU  → dibuat dengan nama pengguna & hash sandi e-GURU (bila e-GURU tidak punya akun,
  *                 dipakai nama pengguna otomatis + sandi awal `guru123` seperti sebelumnya).
  *  • AKUN LAMA  → nama pengguna disamakan bila belum dipakai akun lain, dan kata sandinya
- *                 disalin HANYA bila sandinya masih `guru123` (belum pernah diganti pemiliknya).
- *                 Sandi yang SUDAH diganti guru di CBT TIDAK PERNAH ditimpa — itulah maksud
- *                 "kecuali nanti guru menggantinya sendiri di akun CBT".
+ *                 disalin bila sandinya MASIH mengikuti e-GURU.
+ *
+ * Bagaimana "masih mengikuti e-GURU" diketahui? Kolom `users.sandi_eguru` menyimpan hash e-GURU
+ * yang terakhir disalin. Selama `users.password` masih SAMA dengan `sandi_eguru`, sandi itu belum
+ * pernah diganti siapa pun di CBT → aman diperbarui bila sandi e-GURU berubah (mis. operator e-GURU
+ * mereset sandi guru). Begitu sandinya diganti sendiri oleh guru pada menu "Akun Saya" (atau direset
+ * Admin lewat menu Data Guru/pengguna) hash-nya BERBEDA → sandi pilihan mereka TIDAK PERNAH ditimpa.
+ * Akun lama yang belum punya `sandi_eguru` (dibuat versi sebelumnya) tetap memakai aturan lama:
+ * disamakan hanya bila sandinya masih `guru123` (sandi awal).
  *
  * @return string 'baru' | 'sinkron' | 'tetap' | ''
  */
@@ -155,9 +163,9 @@ function eguru_akun_guru_sinkron(array $guruCbt, array $akunEguru, int $sid, str
         $uname = $uname !== ''
             ? username_unik_apa_adanya($uname)
             : username_unik(username_dari_nama($nama));
-        q('INSERT INTO users (sekolah_id, nama, username, password, role, guru_id, aktif, dibuat)
-           VALUES (?,?,?,?,?,?,?,?)',
-            [$sid, $nama, $uname, $hash, 'guru', $gid, $aktif, $now]);
+        q('INSERT INTO users (sekolah_id, nama, username, password, sandi_eguru, role, guru_id, aktif, dibuat)
+           VALUES (?,?,?,?,?,?,?,?,?)',
+            [$sid, $nama, $uname, $hash, ($akunEguru['hash'] ?? '') !== '' ? $hash : null, 'guru', $gid, $aktif, $now]);
         return 'baru';
     }
 
@@ -172,10 +180,18 @@ function eguru_akun_guru_sinkron(array $guruCbt, array $akunEguru, int $sid, str
         $ubah[] = 'username = ?';
         $nilai[] = $uname;
     }
-    if (password_verify('guru123', (string) $lama['password'])) {
-        // Sandi awal (belum pernah diganti) → samakan dengan sandi e-GURU.
+    $hashEguru = (string) ($akunEguru['hash'] ?? '');
+    $hashCbt = (string) $lama['password'];
+    $sandiEguru = (string) ($lama['sandi_eguru'] ?? '');
+    // Sandi disalin bila (a) masih sandi awal guru123 (akun versi lama), atau (b) belum pernah
+    // diganti sejak salinan e-GURU terakhir — lihat penjelasan pada komentar fungsi ini.
+    $salinSandi = $hashEguru !== '' && (password_verify('guru123', $hashCbt)
+        || ($sandiEguru !== '' && hash_equals($sandiEguru, $hashCbt)));
+    if ($salinSandi && !hash_equals($hashEguru, $hashCbt)) {
         $ubah[] = 'password = ?';
-        $nilai[] = (string) $akunEguru['hash'];
+        $nilai[] = $hashEguru;
+        $ubah[] = 'sandi_eguru = ?';
+        $nilai[] = $hashEguru;
     }
     if (!$ubah) {
         return 'tetap';
@@ -183,6 +199,50 @@ function eguru_akun_guru_sinkron(array $guruCbt, array $akunEguru, int $sid, str
     $nilai[] = (int) $lama['id'];
     q('UPDATE users SET ' . implode(', ', $ubah) . ' WHERE id = ?', $nilai);
     return 'sinkron';
+}
+
+/**
+ * AKUN PENGELOLA sebuah lembaga pada e-GURU: nama, nama pengguna, dan hash kata sandi.
+ *
+ * Permintaan pemilik (v1.20.0): *"nama operator yang ada di akun e-Guru, begitu juga dengan nama
+ * pengguna dan passwordnya diambil dari data akun operator e-Guru"*.
+ *
+ * Urutan pemilihan (jangan diubah tanpa bertanya):
+ *   1. akun berperan **operator** (aktif lebih dahulu),
+ *   2. bila lembaga itu belum punya akun operator di e-GURU → akun **kepala** lembaga,
+ *   3. tidak ada keduanya → null (pemanggil memakai cara lama: nama kepala + sandi acak).
+ *
+ * Kata sandi TIDAK dapat dibaca sebagai teks dari e-GURU (hanya hash bcrypt-nya). Karena itu yang
+ * disalin adalah HASH-nya — sama seperti akun guru — sehingga pengelola masuk ke CBT memakai kata
+ * sandi e-GURU yang sama tanpa aplikasi ini pernah mengetahui kata sandinya.
+ *
+ * @return array{nama:string,username:string,hash:string,peran:string}|null
+ */
+function eguru_akun_pengelola(int $esid): ?array
+{
+    if ($esid <= 0) {
+        return null;
+    }
+    foreach (['operator', 'kepala'] as $peran) {
+        $u = eguru_one('SELECT nama, username, password_hash FROM users
+            WHERE sekolah_id = ? AND role = ? ORDER BY (aktif = 1) DESC, id LIMIT 1', [$esid, $peran]);
+        if (!$u) {
+            continue;
+        }
+        $uname = trim((string) ($u['username'] ?? ''));
+        $hash = trim((string) ($u['password_hash'] ?? ''));
+        if ($uname === '' || $hash === '') {
+            continue;
+        }
+        $nama = trim((string) ($u['nama'] ?? ''));
+        return [
+            'nama' => $nama !== '' ? $nama : $uname,
+            'username' => $uname,
+            'hash' => $hash,
+            'peran' => $peran,
+        ];
+    }
+    return null;
 }
 
 function eguru_all(string $sql, array $p = []): array

@@ -146,9 +146,18 @@ async function masuk(page, user, sandi) {
   benar('formulir penarikan disiapkan setelah ditemukan', halCari.includes('Tarik &amp; Buat Sekolah'));
   benar('identitas lembaga ditampilkan', halCari.includes('Jl. Uji No. 2') && halCari.includes('Kepala Lembaga Lain'));
 
-  await page.fill('input[name="nama_admin"]', 'Kepala UI Uji');
-  await page.fill('input[name="username"]', 'opuiuji');
-  await page.fill('input[name="password"]', 'rahasia123');
+  // v1.20.0 (permintaan pemilik): nama, nama pengguna, dan kata sandi akun Admin Operator diambil
+  // dari AKUN OPERATOR e-GURU lembaga itu — Super Admin tidak mengetik apa pun di sini.
+  cek('nama admin terisi dari akun operator e-GURU',
+    (await page.inputValue('input[name="nama_admin"]')), 'Operator MTsS Lain');
+  cek('nama pengguna terisi dari akun operator e-GURU',
+    (await page.inputValue('input[name="username"]')), 'opmtss');
+  benar('nama pengguna e-GURU tidak dapat diubah di formulir',
+    (await page.getAttribute('input[name="username"]', 'readonly')) !== null);
+  benar('tidak ada isian kata sandi baru (mengikuti e-GURU)',
+    (await page.$('input[name="password"]')) === null);
+  benar('keterangan kata sandi mengikuti akun e-GURU tampil',
+    (await page.inputValue('#sandiIkutEguru')).includes('Mengikuti kata sandi akun e-GURU'));
   benar('centang "sekalian tarik" aktif', await page.isChecked('input[name="sekalian"]'));
   await Promise.all([page.waitForNavigation({ timeout: 30000 }), page.click('#btnKirimTarik')]);
   const halBaru = await page.content();
@@ -158,7 +167,9 @@ async function masuk(page, user, sandi) {
   benar('NPSN terisi dari e-GURU', (await page.inputValue('input[name="npsn"]')) === '222333');
   benar('kecamatan terisi dari e-GURU', (await page.inputValue('input[name="kecamatan"]')) === 'Mootilango');
   benar('nama kepala terisi dari e-GURU', (await page.inputValue('input[name="kepala"]')) === 'Kepala Lembaga Lain');
-  benar('akun Admin Operator baru terdaftar', halBaru.includes('opuiuji'));
+  benar('akun Admin Operator memakai nama pengguna e-GURU', halBaru.includes('opmtss'));
+  benar('pesan menyebut kata sandi mengikuti akun e-GURU',
+    halBaru.includes('kata sandi mengikuti akun operator e-GURU'));
   benar('dampak menunjukkan guru & siswa hasil tarikan',
     /Dampak: 1 guru, 1 siswa/.test(halBaru.replace(/\s+/g, ' ')));
 
@@ -177,7 +188,7 @@ async function masuk(page, user, sandi) {
 
   console.log('== 6. Masa aktif 365 hari + hitung mundur (bukan Permanen) ==');
   await page.goto(BASE + '/sekolah.php?keluar=1');
-  await masuk(page, 'opuiuji', 'rahasia123');   // operator sekolah hasil tarikan
+  await masuk(page, 'opmtss', 'SandiOperator2');   // akun operator e-GURU hasil tarikan
   await page.goto(BASE + '/index.php');
   const kartuText = (await page.textContent('body')).replace(/\s+/g, ' ');
   benar('kartu Masa Aktif tidak lagi berbunyi Permanen', !/Masa Aktif Permanen/.test(kartuText));

@@ -168,24 +168,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         aktivasi_mulai_uji_coba($baru, AKTIVASI_HARI_AKTIF);
 
         // Akun Admin Operator supaya sekolah baru langsung dapat dipakai.
+        //
+        // Permintaan pemilik (v1.20.0): nama operator, nama pengguna, DAN kata sandinya diambil dari
+        // AKUN OPERATOR e-GURU lembaga itu — "nama operator yang ada di akun e-Guru, begitu juga
+        // dengan nama pengguna dan passwordnya". Bila lembaga belum punya akun operator di e-GURU,
+        // dipakai akun KEPALA lembaga; bila keduanya tidak ada, berlaku cara lama (nama kepala +
+        // nama pengguna saran + kata sandi acak yang ditampilkan kepada Super Admin).
+        //
+        // Kata sandi e-GURU hanya tersedia sebagai HASH (bcrypt) — tidak ada teks yang bisa
+        // ditampilkan. Karena itu hash-nya DISALIN apa adanya (sama seperti akun guru), sehingga
+        // pengelola masuk ke CBT memakai kata sandi e-GURU yang sama.
+        $akunEg = eguru_akun_pengelola($esid);
         $namaAdmin = teks($_POST['nama_admin'] ?? '', 120);
+        if ($namaAdmin === '' && $akunEg) {
+            $namaAdmin = teks($akunEg['nama'], 120);
+        }
         if ($namaAdmin === '') {
             $namaAdmin = teks((string) $ident['kepala'], 120);
         }
         if ($namaAdmin === '') {
             $namaAdmin = 'Administrator ' . $namaBaru;
         }
-        $uname = teks($_POST['username'] ?? '', 40);
-        $uname = preg_match('/^[a-zA-Z0-9._]{4,30}$/', $uname)
-            ? username_unik($uname) : username_unik(username_dari_nama($namaBaru));
-        $sandi = (string) ($_POST['password'] ?? '');
         $sandiAcak = false;
-        if (strlen($sandi) < 8) {
-            $sandi = sandi_acak(8);
-            $sandiAcak = true;
+        $unameEguru = '';
+        if ($akunEg) {
+            // Nama pengguna & kata sandi MENGIKUTI akun e-GURU (bukan isian formulir).
+            $unameEguru = (string) $akunEg['username'];
+            $uname = username_unik_apa_adanya($unameEguru);
+            $sandiHash = (string) $akunEg['hash'];
+        } else {
+            $uname = teks($_POST['username'] ?? '', 40);
+            $uname = preg_match('/^[a-zA-Z0-9._]{4,30}$/', $uname)
+                ? username_unik($uname) : username_unik(username_dari_nama($namaBaru));
+            $sandi = (string) ($_POST['password'] ?? '');
+            if (strlen($sandi) < 8) {
+                $sandi = sandi_acak(8);
+                $sandiAcak = true;
+            }
+            $sandiHash = password_hash($sandi, PASSWORD_DEFAULT);
         }
-        q('INSERT INTO users (sekolah_id, nama, username, password, role, aktif, dibuat) VALUES (?,?,?,?,?,1,?)',
-            [$baru, $namaAdmin, $uname, password_hash($sandi, PASSWORD_DEFAULT), 'operator', date('Y-m-d H:i:s')]);
+        q('INSERT INTO users (sekolah_id, nama, username, password, sandi_eguru, role, aktif, dibuat)
+           VALUES (?,?,?,?,?,?,1,?)',
+            [$baru, $namaAdmin, $uname, $sandiHash, $akunEg ? $sandiHash : null, 'operator',
+                date('Y-m-d H:i:s')]);
 
         // Sekalian tarik guru/siswa/kelas/mapel (dijalankan DALAM konteks sekolah baru).
         $tarik = null;
@@ -199,6 +224,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $pesan = 'Lembaga "' . $namaBaru . '" ditarik dari e-GURU: identitas sekolah dibuat'
             . ' (' . $jenjang . ') + akun Admin Operator "' . $uname . '"';
         $pesan .= $sandiAcak ? ' (kata sandi awal: ' . $sandi . ')' : '';
+        if ($akunEg) {
+            $pesan .= ' — nama pengguna & kata sandi mengikuti akun '
+                . ($akunEg['peran'] === 'kepala' ? 'kepala' : 'operator') . ' e-GURU';
+            if ($uname !== $unameEguru) {
+                $pesan .= ' (nama pengguna e-GURU "' . $unameEguru . '" sudah dipakai akun lain,'
+                    . ' dipakai "' . $uname . '")';
+            }
+        }
         $pesan .= '. Masa aktif ' . (int) AKTIVASI_HARI_AKTIF . ' hari (1 tahun) — bukan permanen.';
         if ($tarik === null) {
             $pesan .= ' Data guru & siswa dapat ditarik lewat menu Tarik Data dari e-GURU.';
@@ -256,8 +289,21 @@ if (!$egPilihRow && count($egHasil) === 1) {
 }
 $egPilihSudah = $egPilihRow ? eguru_sekolah_di_cbt((string) $egPilihRow['nama']) : null;
 // Nilai bawaan formulir penarikan.
-$egSandiSaran = $egPilihRow ? sandi_acak(8) : '';
-$egUnameSaran = $egPilihRow ? username_unik(username_dari_nama((string) $egPilihRow['nama'])) : '';
+// v1.20.0 (permintaan pemilik): nama, nama pengguna, dan kata sandi akun Admin Operator diambil
+// dari AKUN OPERATOR e-GURU lembaga itu (atau akun kepala bila lembaga belum punya operator).
+$egAkun = $egPilihRow ? eguru_akun_pengelola((int) $egPilihRow['id']) : null;
+$egUnameSaran = '';
+$egSandiSaran = '';
+if ($egPilihRow) {
+    if ($egAkun) {
+        // Nama pengguna e-GURU dipakai apa adanya (spasi di tengah dipertahankan), dan bila sudah
+        // dipakai akun lain di CBT dipakai variasi uniknya — nilai yang tampil = nilai yang disimpan.
+        $egUnameSaran = username_unik_apa_adanya((string) $egAkun['username']);
+    } else {
+        $egUnameSaran = username_unik(username_dari_nama((string) $egPilihRow['nama']));
+        $egSandiSaran = sandi_acak(8);
+    }
+}
 $isi = fn($v): string => trim((string) $v) !== '' ? (string) $v : '—';
 
 $daftar = all("SELECT sc.*,
@@ -637,12 +683,36 @@ page_top('Kelola Sekolah');
                     <?php endforeach; ?>
                   </select></div>
                 <div class="field"><label>Nama Admin Operator</label>
-                  <input type="text" name="nama_admin" value="<?= e((string) $egPilihRow['kepala'] !== '' ? (string) $egPilihRow['kepala'] : 'Administrator ' . $egPilihRow['nama']) ?>"></div>
+                  <input type="text" name="nama_admin" value="<?= e($egAkun
+                      ? (string) $egAkun['nama']
+                      : ((string) $egPilihRow['kepala'] !== ''
+                          ? (string) $egPilihRow['kepala'] : 'Administrator ' . $egPilihRow['nama'])) ?>">
+                  <?php if ($egAkun): ?>
+                    <div class="ket">Diambil dari <b>akun
+                      <?= $egAkun['peran'] === 'kepala' ? 'kepala' : 'operator' ?> e-GURU</b>
+                      lembaga ini; boleh dirapikan.</div>
+                  <?php endif; ?></div>
                 <div class="field"><label>Nama Pengguna Admin Operator</label>
-                  <input type="text" name="username" value="<?= e($egUnameSaran) ?>" autocomplete="off"></div>
-                <div class="field"><label>Kata Sandi Awal (min 8)</label>
-                  <input type="text" name="password" value="<?= e($egSandiSaran) ?>" autocomplete="off">
-                  <div class="ket">Catat dan berikan kepada pengelola sekolah; dapat diganti setelah masuk.</div></div>
+                  <input type="text" name="username" value="<?= e($egUnameSaran) ?>" autocomplete="off"
+                         <?= $egAkun ? 'readonly' : '' ?>>
+                  <?php if ($egAkun): ?>
+                    <div class="ket">Diambil dari akun
+                      <?= $egAkun['peran'] === 'kepala' ? 'kepala' : 'operator' ?> e-GURU
+                      (<b><?= e((string) $egAkun['username']) ?></b>) dan tidak diubah di sini.</div>
+                  <?php endif; ?></div>
+                <?php if ($egAkun): ?>
+                  <div class="field"><label>Kata Sandi Admin Operator</label>
+                    <input type="text" id="sandiIkutEguru" value="Mengikuti kata sandi akun e-GURU" readonly>
+                    <div class="ket">Tidak perlu diisi maupun dibagikan: pengelola masuk ke CBT memakai
+                      <b>kata sandi akun <?= $egAkun['peran'] === 'kepala' ? 'kepala' : 'operator' ?>
+                      e-GURU</b>-nya, dan dapat menggantinya sendiri setelah masuk lewat menu Akun Saya.</div>
+                  </div>
+                <?php else: ?>
+                  <div class="field"><label>Kata Sandi Awal (min 8)</label>
+                    <input type="text" name="password" value="<?= e($egSandiSaran) ?>" autocomplete="off">
+                    <div class="ket">Catat dan berikan kepada pengelola sekolah; dapat diganti setelah masuk.
+                      Lembaga ini belum punya akun operator/kepala di e-GURU, jadi kata sandi dibuat baru.</div></div>
+                <?php endif; ?>
               </div>
               <div class="field">
                 <label style="display:flex;gap:8px;align-items:center;font-weight:400">
